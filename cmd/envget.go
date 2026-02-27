@@ -6,8 +6,8 @@ import (
 	"sort"
 	"text/tabwriter"
 
-	"menv/internal/config"
-	"menv/internal/env"
+	"github.com/akpatel363/menv/internal/config"
+	"github.com/akpatel363/menv/internal/env"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"

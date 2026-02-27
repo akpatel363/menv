@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"menv/internal/config"
+	"github.com/akpatel363/menv/internal/config"
 )
 
 // LoadEnv loads environment variables from the given project and env config.

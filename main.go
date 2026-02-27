@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"menv/cmd"
+	"github.com/akpatel363/menv/cmd"
 )
 
 func main() {

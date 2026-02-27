@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"menv/internal/config"
+	"github.com/akpatel363/menv/internal/config"
 
 	"github.com/spf13/cobra"
 )

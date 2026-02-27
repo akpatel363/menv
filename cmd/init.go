@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"menv/internal/config"
+	"github.com/akpatel363/menv/internal/config"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"

@@ -1,4 +1,4 @@
-module menv
+module github.com/akpatel363/menv
 
 go 1.25.7
 
