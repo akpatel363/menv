@@ -43,7 +43,7 @@ Examples:
 		case 1:
 			return getEnvNames(args[0]), cobra.ShellCompDirectiveNoFileComp
 		default:
-			return nil, cobra.ShellCompDirectiveNoFileComp
+			return nil, cobra.ShellCompDirectiveDefault
 		}
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
