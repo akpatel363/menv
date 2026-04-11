@@ -3,6 +3,8 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"text/tabwriter"
 
@@ -33,7 +35,10 @@ var envListCmd = &cobra.Command{
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		projectName := args[0]
-		cfg := loadConfig()
+		cfg, err := loadConfig()
+		if err != nil {
+			return err
+		}
 
 		project, exists := cfg.Projects[projectName]
 		if !exists {
@@ -48,11 +53,20 @@ var envListCmd = &cobra.Command{
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 		bold := color.New(color.Bold)
 		bold.Fprintf(w, "ENV\tFILES\tOVERRIDES\n")
-		for name, e := range project.Envs {
+
+		names := make([]string, 0, len(project.Envs))
+		for n := range project.Envs {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+
+		for _, name := range names {
+			e := project.Envs[name]
 			overrides := make([]string, 0, len(e.Overrides))
 			for k, v := range e.Overrides {
 				overrides = append(overrides, k+"="+v)
 			}
+			sort.Strings(overrides)
 			fmt.Fprintf(w, "%s\t%s\t%s\n", name, strings.Join(e.Files, ", "), strings.Join(overrides, ", "))
 		}
 		w.Flush()
@@ -80,7 +94,10 @@ var envAddCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		projectName := args[0]
 		envName := args[1]
-		cfg := loadConfig()
+		cfg, err := loadConfig()
+		if err != nil {
+			return err
+		}
 
 		project, exists := cfg.Projects[projectName]
 		if !exists {
@@ -102,6 +119,18 @@ var envAddCmd = &cobra.Command{
 				return fmt.Errorf("invalid override format %q (expected KEY=VALUE)", o)
 			}
 			overrides[parts[0]] = parts[1]
+		}
+
+		// Warn (don't fail) if any referenced env file is missing — the
+		// user may be wiring up the project before the files exist.
+		for _, f := range envAddFiles {
+			fp := f
+			if !filepath.IsAbs(fp) {
+				fp = filepath.Join(project.Path, f)
+			}
+			if _, err := os.Stat(fp); err != nil {
+				color.Yellow("! env file %s does not exist yet", fp)
+			}
 		}
 
 		project.Envs[envName] = config.Env{
@@ -138,7 +167,10 @@ var envRemoveCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		projectName := args[0]
 		envName := args[1]
-		cfg := loadConfig()
+		cfg, err := loadConfig()
+		if err != nil {
+			return err
+		}
 
 		project, exists := cfg.Projects[projectName]
 		if !exists {

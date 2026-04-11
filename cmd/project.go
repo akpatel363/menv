@@ -3,6 +3,8 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"sort"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/akpatel363/menv/internal/config"
@@ -24,7 +26,10 @@ var projectListCmd = &cobra.Command{
 	Aliases: []string{"ls"},
 	Short:   "List all configured projects",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg := loadConfig()
+		cfg, err := loadConfig()
+		if err != nil {
+			return err
+		}
 
 		if len(cfg.Projects) == 0 {
 			color.Yellow("No projects configured. Use 'menv project add' to add one.")
@@ -34,12 +39,21 @@ var projectListCmd = &cobra.Command{
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 		bold := color.New(color.Bold)
 		bold.Fprintf(w, "PROJECT\tPATH\tCOMMAND\tENVS\n")
-		for name, p := range cfg.Projects {
+
+		names := make([]string, 0, len(cfg.Projects))
+		for n := range cfg.Projects {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+
+		for _, name := range names {
+			p := cfg.Projects[name]
 			envNames := make([]string, 0, len(p.Envs))
 			for e := range p.Envs {
 				envNames = append(envNames, e)
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%v\n", name, p.Path, p.Command, envNames)
+			sort.Strings(envNames)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", name, p.Path, p.Command, strings.Join(envNames, ", "))
 		}
 		w.Flush()
 		return nil
@@ -59,14 +73,24 @@ var projectAddCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
-		cfg := loadConfig()
+		cfg, err := loadConfig()
+		if err != nil {
+			return err
+		}
 
 		if _, exists := cfg.Projects[name]; exists {
 			return fmt.Errorf("project %q already exists", name)
 		}
 
+		path := config.NormalizePath(projectAddPath)
+		if info, err := os.Stat(path); err != nil {
+			color.Yellow("! path %s does not exist yet — saving anyway", path)
+		} else if !info.IsDir() {
+			color.Yellow("! path %s is not a directory", path)
+		}
+
 		cfg.Projects[name] = config.Project{
-			Path:    config.NormalizePath(projectAddPath),
+			Path:    path,
 			Command: projectAddCommand,
 			Envs:    make(map[string]config.Env),
 		}
@@ -95,7 +119,10 @@ var projectRemoveCmd = &cobra.Command{
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
-		cfg := loadConfig()
+		cfg, err := loadConfig()
+		if err != nil {
+			return err
+		}
 
 		if _, exists := cfg.Projects[name]; !exists {
 			return fmt.Errorf("project %q not found", name)
@@ -132,5 +159,6 @@ func getProjectNames() []string {
 	for n := range cfg.Projects {
 		names = append(names, n)
 	}
+	sort.Strings(names)
 	return names
 }

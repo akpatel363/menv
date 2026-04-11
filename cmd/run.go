@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/akpatel363/menv/internal/config"
 	"github.com/akpatel363/menv/internal/env"
@@ -47,7 +49,10 @@ Examples:
 		}
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg := loadConfig()
+		cfg, err := loadConfig()
+		if err != nil {
+			return err
+		}
 
 		var projectName, envName string
 		var project config.Project
@@ -62,7 +67,6 @@ Examples:
 		case 1:
 			// Only env name provided — detect project from CWD.
 			envName = argsBeforeDash[0]
-			var err error
 			projectName, project, err = resolveProject(cfg, "")
 			if err != nil {
 				return err
@@ -71,7 +75,6 @@ Examples:
 			// Both project and env provided.
 			projectName = argsBeforeDash[0]
 			envName = argsBeforeDash[1]
-			var err error
 			_, project, err = resolveProject(cfg, projectName)
 			if err != nil {
 				return err
@@ -103,18 +106,23 @@ Examples:
 
 		envVars := env.BuildEnv(loaded)
 
-		color.Cyan("» project: %s | env: %s", projectName, envName)
-		color.Cyan("» directory: %s", project.Path)
-		if len(loaded) > 0 {
-			color.HiBlack("  loaded %d env variable(s)", len(loaded))
+		quiet, _ := cmd.Flags().GetBool("quiet")
+		if !quiet {
+			cyan := color.New(color.FgCyan)
+			cyan.Fprintf(os.Stderr, "» project: %s | env: %s\n", projectName, envName)
+			cyan.Fprintf(os.Stderr, "» directory: %s\n", project.Path)
+			if len(loaded) > 0 {
+				color.New(color.FgHiBlack).Fprintf(os.Stderr, "  loaded %d env variable(s)\n", len(loaded))
+			}
+			cyan.Fprintf(os.Stderr, "» running: %s\n", strings.Join(cmdToRun, " "))
+			fmt.Fprintln(os.Stderr)
 		}
-		color.Cyan("» running: %v", cmdToRun)
-		fmt.Println()
 
 		return runner.Run(cmdToRun, envVars, project.Path)
 	},
 }
 
 func init() {
+	runCmd.Flags().BoolP("quiet", "q", false, "suppress status banner")
 	rootCmd.AddCommand(runCmd)
 }

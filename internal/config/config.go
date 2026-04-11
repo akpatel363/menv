@@ -5,49 +5,44 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"gopkg.in/yaml.v3"
 )
 
-var (
-	configPath string
-	mu         sync.Mutex
-)
+var configPath string
 
-// DefaultConfigPath returns the default config file path.
-func DefaultConfigPath() string {
+// DefaultConfigPath returns the default config file path:
+// $MENV_CONFIG if set, otherwise ~/.menv.yaml.
+func DefaultConfigPath() (string, error) {
 	if envPath := os.Getenv("MENV_CONFIG"); envPath != "" {
-		return envPath
+		return envPath, nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: could not determine home directory: %v\n", err)
-		os.Exit(1)
+		return "", fmt.Errorf("could not determine home directory: %w", err)
 	}
-	return filepath.Join(home, ".menv.yaml")
+	return filepath.Join(home, ".menv.yaml"), nil
 }
 
 // SetConfigPath overrides the config file path (e.g. from --config flag).
 func SetConfigPath(path string) {
-	mu.Lock()
-	defer mu.Unlock()
 	configPath = path
 }
 
 // GetConfigPath returns the resolved config file path.
-func GetConfigPath() string {
-	mu.Lock()
-	defer mu.Unlock()
+func GetConfigPath() (string, error) {
 	if configPath != "" {
-		return configPath
+		return configPath, nil
 	}
 	return DefaultConfigPath()
 }
 
 // Load reads and parses the config file.
 func Load() (*Config, error) {
-	path := GetConfigPath()
+	path, err := GetConfigPath()
+	if err != nil {
+		return nil, err
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file %s: %w", path, err)
@@ -62,12 +57,16 @@ func Load() (*Config, error) {
 	return &cfg, nil
 }
 
-// Save writes the config back to disk.
+// Save writes the config back to disk with restrictive permissions because
+// override values may contain secrets.
 func Save(cfg *Config) error {
-	path := GetConfigPath()
+	path, err := GetConfigPath()
+	if err != nil {
+		return err
+	}
 
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
@@ -75,7 +74,7 @@ func Save(cfg *Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.WriteFile(path, data, 0600); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 	return nil
@@ -83,7 +82,11 @@ func Save(cfg *Config) error {
 
 // Exists checks if the config file already exists.
 func Exists() bool {
-	_, err := os.Stat(GetConfigPath())
+	path, err := GetConfigPath()
+	if err != nil {
+		return false
+	}
+	_, err = os.Stat(path)
 	return err == nil
 }
 

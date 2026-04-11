@@ -49,7 +49,10 @@ Examples:
 		}
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg := loadConfig()
+		cfg, err := loadConfig()
+		if err != nil {
+			return err
+		}
 
 		var projectName, envName string
 		var project config.Project
@@ -62,7 +65,6 @@ Examples:
 			projectName = args[0]
 			envName = args[1]
 			keys = args[2:]
-			var err error
 			_, project, err = resolveProject(cfg, projectName)
 			if err != nil {
 				return err
@@ -71,7 +73,6 @@ Examples:
 			// First arg is env name — detect project from CWD.
 			envName = args[0]
 			keys = args[1:]
-			var err error
 			projectName, project, err = resolveProject(cfg, "")
 			if err != nil {
 				return err
@@ -119,12 +120,12 @@ Examples:
 				fmt.Fprintf(os.Stdout, "export %s=%q\n", k, loaded[k])
 			}
 		} else {
-			color.Cyan("» project: %s | env: %s", projectName, envName)
+			color.New(color.FgCyan).Fprintf(os.Stderr, "» project: %s | env: %s\n", projectName, envName)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 			bold := color.New(color.Bold)
-			bold.Fprintf(w, "KEY\tVALUE\tSOURCE\n")
+			bold.Fprintf(w, "KEY\tVALUE\n")
 			for _, k := range sortedKeys {
-				fmt.Fprintf(w, "%s\t%s\t\n", k, loaded[k])
+				fmt.Fprintf(w, "%s\t%s\n", k, loaded[k])
 			}
 			w.Flush()
 		}
@@ -161,5 +162,6 @@ func getEnvNames(projectName string) []string {
 	for n := range project.Envs {
 		names = append(names, n)
 	}
+	sort.Strings(names)
 	return names
 }

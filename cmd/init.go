@@ -14,8 +14,12 @@ var initCmd = &cobra.Command{
 	Short: "Initialize a new menv config file",
 	Long:  `Creates a new .menv.yaml config file with a sample project structure.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		path, err := config.GetConfigPath()
+		if err != nil {
+			return err
+		}
 		if config.Exists() {
-			color.Yellow("Config file already exists at %s", config.GetConfigPath())
+			color.Yellow("Config file already exists at %s", path)
 			return nil
 		}
 
@@ -38,7 +42,7 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("failed to create config: %w", err)
 		}
 
-		color.Green("✓ Config file created at %s", config.GetConfigPath())
+		color.Green("✓ Config file created at %s", path)
 		color.Cyan("  Edit it to add your projects and environments.")
 		return nil
 	},

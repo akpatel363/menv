@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/akpatel363/menv/internal/config"
 
@@ -39,15 +38,14 @@ func initConfig() {
 	}
 }
 
-// loadConfig is a helper used by sub-commands.
-func loadConfig() *config.Config {
+// loadConfig is a helper used by sub-commands. It wraps config.Load with a
+// hint pointing users at `menv init` when the file is missing.
+func loadConfig() (*config.Config, error) {
 	cfg, err := config.Load()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		fmt.Fprintln(os.Stderr, "Run 'menv init' to create a config file.")
-		os.Exit(1)
+		return nil, fmt.Errorf("%w\nRun 'menv init' to create a config file", err)
 	}
-	return cfg
+	return cfg, nil
 }
 
 // resolveProject resolves a project by name, or by CWD detection if name is empty.
